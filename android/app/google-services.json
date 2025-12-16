@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "15335037261",
+    "firebase_url": "https://fixian2-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "fixian2",
+    "storage_bucket": "fixian2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:15335037261:android:b3fd32f55d1c724ee13f04",
+        "android_client_info": {
+          "package_name": "com.example.esheba_fixian"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7dna36RMshPIwhjjnFaeVxHh8K0Bcbqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:15335037261:android:ec5dc828ebe190f6e13f04",
+        "android_client_info": {
+          "package_name": "com.example.flutter_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7dna36RMshPIwhjjnFaeVxHh8K0Bcbqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
