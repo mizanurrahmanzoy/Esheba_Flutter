@@ -1,31 +1,42 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:esheba_fixian/screens/user/user_main_shell.dart';
+// import 'package:esheba_fixian/screens/user/user_root_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../services/category_service.dart';
 import '../login_screen.dart';
 import '../provider/provider_home_screen.dart';
-import '../user/user_home_screen.dart';
+// import '../user/user_home_screen.dart';
+import '../../services/category_service.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
-  Future<String> _loadUserRoleAndCache(String uid) async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
+  Future<String> _resolveAccountType(String uid) async {
+    // 1️⃣ Check CUSTOMER
+    final customerDoc = await FirebaseFirestore.instance
+        .collection('customers')
         .doc(uid)
         .get();
 
-    final data = doc.data();
-
-    if (data == null || !data.containsKey('role')) {
-      throw Exception("User role not found");
+    if (customerDoc.exists) {
+      await CategoryService.getCategories();
+      return 'customer';
     }
 
-    // 🔥 preload categories for both user & provider
-    await CategoryService.getCategories();
+    // 2️⃣ Check PROVIDER
+    final providerDoc = await FirebaseFirestore.instance
+        .collection('providers')
+        .doc(uid)
+        .get();
 
-    return data['role'];
+    if (providerDoc.exists) {
+      await CategoryService.getCategories();
+      return 'provider';
+    }
+
+    // ❌ No account record
+    throw Exception("Account data not found");
   }
 
   @override
@@ -46,9 +57,9 @@ class AuthGate extends StatelessWidget {
 
         final uid = authSnap.data!.uid;
 
-        // ✅ Logged in → load role + cache
+        // ✅ Logged in → resolve account type
         return FutureBuilder<String>(
-          future: _loadUserRoleAndCache(uid),
+          future: _resolveAccountType(uid),
           builder: (context, roleSnap) {
             if (roleSnap.connectionState == ConnectionState.waiting) {
               return const Scaffold(
@@ -59,7 +70,10 @@ class AuthGate extends StatelessWidget {
             if (roleSnap.hasError) {
               return const Scaffold(
                 body: Center(
-                  child: Text("Failed to load user data"),
+                  child: Text(
+                    "Account data not found.\nPlease contact support.",
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               );
             }
@@ -69,7 +83,7 @@ class AuthGate extends StatelessWidget {
             if (role == 'provider') {
               return const ProviderHomeScreen();
             } else {
-              return const UserHomeScreen();
+              return const UserMainShell();
             }
           },
         );

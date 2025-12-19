@@ -2,29 +2,41 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class UsageService {
+  /// Free providers: max 2 services
   static Future<bool> canPostService() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
 
-    final userRef =
-        FirebaseFirestore.instance.collection('users').doc(uid);
-    final userSnap = await userRef.get();
+    final uid = user.uid;
 
-    final data = userSnap.data()!;
+    // 🔹 Load provider document
+    final providerDoc = await FirebaseFirestore.instance
+        .collection('providers')
+        .doc(uid)
+        .get();
+
+    // ❌ Provider not registered properly
+    if (!providerDoc.exists) {
+      return false;
+    }
+
+    final data = providerDoc.data()!;
+
+    // 🔹 Premium providers have unlimited posts
     final bool isPremium = data['isPremium'] ?? false;
-    final int postCount = data['servicePostCount'] ?? 0;
-
     if (isPremium) return true;
-    return postCount < 2; // free limit
+
+    // 🔹 Count services posted by provider
+    final servicesSnap = await FirebaseFirestore.instance
+        .collection('services')
+        .where('providerId', isEqualTo: uid)
+        .get();
+
+    return servicesSnap.size < 2;
   }
 
+  /// Optional (can be empty for now)
   static Future<void> increasePostCount() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .update({
-      'servicePostCount': FieldValue.increment(1),
-    });
+    // Not required if counting via services collection
   }
 }

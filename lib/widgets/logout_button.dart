@@ -1,3 +1,4 @@
+import 'package:esheba_fixian/services/provider_cache_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -6,6 +7,8 @@ class LogoutButton extends StatelessWidget {
 
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
+    await ProviderCacheService.clear();
+
     // ❌ No navigation
     // AuthGate handles redirection
   }

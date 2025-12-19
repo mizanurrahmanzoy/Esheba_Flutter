@@ -16,6 +16,10 @@ dependencies:
   image_picker: ^1.2.1
   shared_preferences: ^2.2.2
   firebase_app_check: ^0.4.1+2
+  http: ^1.2.0
+  geolocator: ^10.1.0
+  geocoding: ^2.1.0
+  flutter_typeahead: ^5.0.0
 
 
 dev_dependencies:

@@ -1,9 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:esheba_fixian/screens/user/category_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/category_service.dart';
-import '../login_screen.dart';
-import 'service_list_by_category.dart';
+// import '../../models/category_model.dart';
+import 'all_categories_screen.dart';
+import 'user_profile_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -13,178 +16,280 @@ class UserHomeScreen extends StatefulWidget {
 }
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
-  List<String> categories = [];
-  bool loading = true;
+  Map<String, dynamic>? user;
+  List<CategoryModel> categories = [];
+
+  bool loadingUser = true;
+  bool loadingCategories = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCachedCategories();
+    _loadAll();
   }
 
+  Future<void> _loadAll() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
+    final userDoc = await FirebaseFirestore.instance
+        .collection('customers')
+        .doc(uid)
+        .get();
 
-  Future<void> _loadCachedCategories() async {
-    final cached = await CategoryService.getCategories();
+    final cats = await CategoryService.getCategories();
 
     setState(() {
-      categories = cached;
-      loading = false;
+      user = userDoc.data();
+      categories = cats.cast<CategoryModel>();
+      loadingUser = false;
+      loadingCategories = false;
     });
-  }
-
-  void _logout() async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("ESheba"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
+      backgroundColor: const Color(0xFFF6F7FB),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadAll,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// 🟦 PROFILE HEADER
+                loadingUser ? _profileSkeleton() : _profileHeader(),
+
+                const SizedBox(height: 24),
+
+                /// 🧩 CATEGORIES
+                const Text(
+                  "Popular Services",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+
+                loadingCategories
+                    ? _categorySkeleton()
+                    : _categoryList(context),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// ---------------- PROFILE ----------------
+
+  Widget _profileHeader() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1E88E5), Color(0xFF42A5F5)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundImage: user!['image'] != null
+                  ? NetworkImage(user!['image'])
+                  : null,
+              child: user!['image'] == null
+                  ? const Icon(Icons.person, size: 28)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user!['name'],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user!['location'] ?? "Set your location",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Stack(
+              children: [
+                const Icon(Icons.notifications_none, color: Colors.white),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Text(
+                      "3",
+                      style: TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _profileSkeleton() {
+    return Container(
+      height: 90,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(20),
+      ),
+    );
+  }
+
+  /// ---------------- CATEGORIES ----------------
+
+  Widget _categoryList(BuildContext context) {
+    if (categories.isEmpty) {
+      return const Center(child: Text("No categories available"));
+    }
+
+    return SizedBox(
+      height: 160,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: categories.length > 4 ? 5 : categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        itemBuilder: (_, index) {
+          if (index == 4) return _viewAllCard(context);
+
+          final cat = categories[index];
+          return CategoryCard(cat: cat);
+        },
+      ),
+    );
+  }
+
+  Widget _categorySkeleton() {
+    return SizedBox(
+      height: 160,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: 4,
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        itemBuilder: (_, __) => Container(
+          width: 120,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _viewAllCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AllCategoriesScreen(categories: categories),
+          ),
+        );
+      },
+      child: Container(
+        width: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Center(
+          child: Text(
+            "View All",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ---------------- CATEGORY CARD ----------------
+
+class CategoryCard extends StatelessWidget {
+  final CategoryModel cat;
+
+  const CategoryCard({super.key, required this.cat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF42A5F5), Color(0xFF1976D2)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(_icon(cat.icon), color: Colors.white, size: 32),
+          const SizedBox(height: 12),
+          Text(
+            cat.name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadCachedCategories,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 👋 Header
-                    const Text(
-                      "What service do you need?",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 🔍 Search bar
-                    TextField(
-                      readOnly: true,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const ServiceListByCategoryScreen(),
-                          ),
-                        );
-                      },
-                      decoration: InputDecoration(
-                        hintText: "Search services...",
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 🧩 Categories
-                    const Text(
-                      "Categories",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: categories.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
-                      itemBuilder: (context, index) {
-                        final category = categories[index];
-
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ServiceListByCategoryScreen(
-                                  category: category,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Center(
-                              child: Text(
-                                category,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // 🕒 History placeholder
-                    const Text(
-                      "Recent Activity",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 12),
-
-                    SizedBox(
-                      height: 120,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: 3,
-                        itemBuilder: (_, i) => Container(
-                          width: 220,
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Center(
-                            child: Text("Service history coming soon"),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
     );
+  }
+
+  IconData _icon(String key) {
+    switch (key) {
+      case 'plumbing':
+        return Icons.plumbing;
+      case 'cleaning_services':
+        return Icons.cleaning_services;
+      case 'electrical_services':
+        return Icons.electrical_services;
+      case 'carpenter':
+        return Icons.carpenter;
+      case 'ac_unit':
+        return Icons.ac_unit;
+      default:
+        return Icons.miscellaneous_services;
+    }
   }
 }

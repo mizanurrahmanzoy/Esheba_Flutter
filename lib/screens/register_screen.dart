@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'auth/auth_gate.dart';
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -14,7 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  String role = 'user'; // default
+  String role = 'user';
   bool loading = false;
 
   Future<void> register() async {
@@ -28,7 +30,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => loading = true);
 
     try {
-      // 1️⃣ Create Auth Account
       final cred =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
@@ -37,20 +38,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final uid = cred.user!.uid;
 
-      // 2️⃣ Save user profile in Firestore
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
         'name': nameController.text.trim(),
         'email': emailController.text.trim(),
-        'role': role, // user | provider
-        'createdAt': FieldValue.serverTimestamp(),
+        'role': role,
         'isPremium': false,
+        'profileCompleted': role == 'user',
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 3️⃣ Navigate to AuthGate / Home
-      Navigator.pushNamedAndRemoveUntil(
+      Navigator.pushAndRemoveUntil(
         context,
-        '/home',
+        MaterialPageRoute(builder: (_) => const AuthGate()),
         (_) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -90,7 +90,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 🔘 ROLE SELECTION
             Row(
               children: [
                 Expanded(

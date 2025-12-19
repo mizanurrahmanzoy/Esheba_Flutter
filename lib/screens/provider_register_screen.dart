@@ -1,168 +1,102 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
+import '../services/cloudinary_service.dart';
+import '../services/provider_cache.dart';
 
 class ProviderRegisterScreen extends StatefulWidget {
   const ProviderRegisterScreen({super.key});
 
   @override
-  State<ProviderRegisterScreen> createState() => _ProviderRegisterScreenState();
+  State<ProviderRegisterScreen> createState() =>
+      _ProviderRegisterScreenState();
 }
 
 class _ProviderRegisterScreenState extends State<ProviderRegisterScreen> {
-  final nameController = TextEditingController();
-  final phoneController = TextEditingController();
-  final skillController = TextEditingController();
+  final nameCtrl = TextEditingController();
+  final phoneCtrl = TextEditingController();
+  final locationCtrl = TextEditingController();
 
-  File? nidFront;
-  File? nidBack;
+  File? image;
+  bool loading = false;
 
-  bool isLoading = false;
-
-  Future<void> pickFrontNID() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-
+  Future<void> pickImage() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() {
-        nidFront = File(picked.path);
-      });
+      setState(() => image = File(picked.path));
     }
   }
 
-  Future<void> pickBackNID() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+  Future<void> submit() async {
+    if (image == null) return;
 
-    if (picked != null) {
-      setState(() {
-        nidBack = File(picked.path);
-      });
-    }
-  }
+    setState(() => loading = true);
 
-  Future<String> uploadImage(File file, String path) async {
-    final ref = FirebaseStorage.instance.ref().child(path);
-    await ref.putFile(file);
-    return await ref.getDownloadURL();
-  }
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final email = FirebaseAuth.instance.currentUser!.email;
 
-  Future<void> registerProvider() async {
-    if (nidFront == null || nidBack == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Upload both NID images")));
-      return;
-    }
+    final imageUrl = await CloudinaryService.uploadImage(image!);
+    if (imageUrl == null) return;
 
-    setState(() => isLoading = true);
+    final data = {
+      'uid': uid,
+      'name': nameCtrl.text.trim(),
+      'email': email,
+      'phone': phoneCtrl.text.trim(),
+      'location': locationCtrl.text.trim(),
+      'image': imageUrl,
+      'rating': 0,
+      'accuracy': 100,
+      'isPremium': false,
+      'contactVisible': true,
+      'locationVisible': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
 
-    try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
+    await FirebaseFirestore.instance
+        .collection('providers')
+        .doc(uid)
+        .set(data);
 
-      final frontUrl =
-          await uploadImage(nidFront!, "nid/$uid/front.jpg");
-      final backUrl =
-          await uploadImage(nidBack!, "nid/$uid/back.jpg");
+    await ProviderCache.save(data);
 
-      await FirebaseFirestore.instance.collection('providers').doc(uid).set({
-        'uid': uid,
-        'name': nameController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'skill': skillController.text.trim(),
-        'nidFrontUrl': frontUrl,
-        'nidBackUrl': backUrl,
-        'verified': false,
-        'createdAt': DateTime.now(),
-      });
+    setState(() => loading = false);
 
-      // update main user role
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'role': 'provider',
-      });
-
-      Navigator.pushReplacementNamed(context, '/home');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
-    }
-
-    setState(() => isLoading = false);
+    Navigator.pushReplacementNamed(context, '/provider-home');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Provider Registration")),
-      body: SingleChildScrollView(
+      appBar: AppBar(title: const Text("Provider Setup")),
+      body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: ListView(
           children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: "Full Name",
+            GestureDetector(
+              onTap: pickImage,
+              child: CircleAvatar(
+                radius: 50,
+                backgroundImage:
+                    image != null ? FileImage(image!) : null,
+                child: image == null
+                    ? const Icon(Icons.camera_alt, size: 30)
+                    : null,
               ),
             ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: phoneController,
-              decoration: const InputDecoration(
-                labelText: "Phone",
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: skillController,
-              decoration: const InputDecoration(
-                labelText: "Skill (e.g., Electrician, Plumber)",
-              ),
-            ),
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Business Name")),
+            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: "Phone")),
+            TextField(controller: locationCtrl, decoration: const InputDecoration(labelText: "Location")),
             const SizedBox(height: 20),
-
-            // NID front
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: pickFrontNID,
-                  child: const Text("Upload NID Front"),
-                ),
-                const SizedBox(width: 12),
-                nidFront != null
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : const Text("Not uploaded"),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // NID back
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: pickBackNID,
-                  child: const Text("Upload NID Back"),
-                ),
-                const SizedBox(width: 12),
-                nidBack != null
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : const Text("Not uploaded"),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            isLoading
+            loading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
-                    onPressed: registerProvider,
-                    child: const Text("Submit Registration"),
-                  ),
+                    onPressed: submit,
+                    child: const Text("Complete Setup"),
+                  )
           ],
         ),
       ),
