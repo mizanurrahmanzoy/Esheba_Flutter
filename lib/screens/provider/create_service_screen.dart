@@ -41,7 +41,6 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
 
   Future<void> _loadCategories() async {
     final data = await CategoryService.getCategories();
-
     setState(() {
       categories = data;
       selectedCategory = categories.isNotEmpty ? categories.first : null;
@@ -50,64 +49,31 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
   }
 
   Future<void> submitService() async {
-    debugPrint("🔥 submitService() called");
-
     FocusScope.of(context).unfocus();
 
     try {
-      debugPrint("⏳ Checking usage limit...");
       final allowed = await UsageService.canPostService();
-      debugPrint("✅ canPostService = $allowed");
-
       if (!allowed) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Post Limit Reached"),
-            content: const Text(
-              "Free providers can post only 2 services.\nUpgrade to Premium.",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
+        _showUpgradeDialog();
         return;
       }
 
-      if (selectedCategory == null) {
-        debugPrint("❌ selectedCategory is NULL");
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Category not selected")));
-        return;
-      }
-
-      if (titleController.text.trim().isEmpty ||
+      if (selectedCategory == null ||
+          titleController.text.trim().isEmpty ||
           priceController.text.trim().isEmpty) {
-        debugPrint("❌ Required fields missing");
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Fill required fields")));
+        _showError("Please fill all required fields");
         return;
       }
 
       final price = int.tryParse(priceController.text.trim());
       if (price == null) {
-        debugPrint("❌ Price parse failed");
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Invalid price")));
+        _showError("Invalid price");
         return;
       }
 
       setState(() => isLoading = true);
 
       final uid = FirebaseAuth.instance.currentUser!.uid;
-      debugPrint("👤 Provider UID = $uid");
 
       await FirebaseFirestore.instance.collection('services').add({
         'providerId': uid,
@@ -118,107 +84,220 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
         'location': locationController.text.trim(),
         'isActive': true,
         'createdAt': FieldValue.serverTimestamp(),
+        /// hourly rate
+        'isHourly': false,
+        'hourlyRate': 0,
+        /// order count
+        'orderCount': 0,
       });
-
-      debugPrint("✅ Service posted successfully");
 
       await UsageService.increasePostCount();
 
       if (!mounted) return;
       setState(() => isLoading = false);
 
-      /// 🎉 SUCCESS DIALOG
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text("Success 🎉"),
-          content: const Text("Your service has been posted successfully."),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // close dialog
-                Navigator.pop(context); // go back
-              },
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
-    } catch (e, s) {
-      debugPrint("🔥 ERROR in submitService: $e");
-      debugPrint(s.toString());
-
+      _showSuccess();
+    } catch (e) {
       if (!mounted) return;
       setState(() => isLoading = false);
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
+      _showError("Something went wrong. Please try again.");
     }
+  }
+
+  void _showSuccess() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Service Posted 🎉"),
+        content: const Text(
+          "Your service has been successfully published and is now visible to customers.",
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text("Done"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
+
+  void _showUpgradeDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Post Limit Reached"),
+        content: const Text(
+          "Free providers can post only 2 services.\nUpgrade to Premium to post more.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Later"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/premium_upgrade');
+            },
+            child: const Text("Upgrade"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Post a Service")),
       body: isCategoryLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: "Service Title",
+          : CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 120,
+                  pinned: true,
+                  flexibleSpace: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color.fromARGB(255, 0, 164, 214), Color.fromARGB(255, 147, 226, 0)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const FlexibleSpaceBar(
+                      title: Text("Post a Service",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                ),
 
-                  TextField(
-                    controller: descriptionController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(labelText: "Description"),
+                SliverPadding(
+                  padding: const EdgeInsets.all(16),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _formCard(),
+                      const SizedBox(height: 24),
+                      isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton.icon(
+                                onPressed: submitService,
+                                icon: const Icon(Icons.publish),
+                                label: const Text("Publish Service"),
+                                style: ElevatedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ]),
                   ),
-                  const SizedBox(height: 12),
+                ),
+              ],
+            ),
+    );
+  }
 
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedCategory,
-                    items: categories
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (val) => setState(() => selectedCategory = val),
-                    decoration: const InputDecoration(labelText: "Category"),
-                  ),
-                  const SizedBox(height: 12),
+  Widget _formCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _input(
+              controller: titleController,
+              label: "Service Title",
+              icon: Icons.work_outline,
+            ),
+            const SizedBox(height: 12),
 
-                  TextField(
-                    controller: priceController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Price (Tk)"),
-                  ),
-                  const SizedBox(height: 12),
+            _input(
+              controller: descriptionController,
+              label: "Description",
+              icon: Icons.description_outlined,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 12),
 
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(labelText: "Location"),
-                  ),
-                  const SizedBox(height: 24),
-
-                  isLoading
-                      ? const CircularProgressIndicator()
-                      : SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: submitService,
-                            child: const Text("Post Service"),
-                          ),
-                        ),
-                ],
+            DropdownButtonFormField<String>(
+              value: selectedCategory,
+              items: categories
+                  .map(
+                    (c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(c),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) => setState(() => selectedCategory = v),
+              decoration: const InputDecoration(
+                labelText: "Category",
+                prefixIcon: Icon(Icons.category_outlined),
               ),
             ),
+            const SizedBox(height: 12),
+
+            _input(
+              controller: priceController,
+              label: "Price (Tk)",
+              icon: Icons.payments_outlined,
+              keyboard: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+
+            _input(
+              controller: locationController,
+              label: "Location",
+              icon: Icons.location_on_outlined,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _input({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboard,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboard,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
   }
 }

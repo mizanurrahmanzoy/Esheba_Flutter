@@ -1,4 +1,5 @@
 import 'package:esheba_fixian/screens/user/service_explorer_screen.dart';
+import 'package:esheba_fixian/screens/user/user_orders_screen.dart';
 import 'package:flutter/material.dart';
 
 import 'user_home_screen.dart';
@@ -76,13 +77,6 @@ class _UserMainShellState extends State<UserMainShell> {
 
 
 
-class UserOrdersScreen extends StatelessWidget {
-  const UserOrdersScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text("Orders"));
-  }
-}
 
 class UserSearchScreen extends StatelessWidget {
   const UserSearchScreen({super.key});

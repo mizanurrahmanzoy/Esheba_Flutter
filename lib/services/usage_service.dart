@@ -32,7 +32,7 @@ class UsageService {
         .where('providerId', isEqualTo: uid)
         .get();
 
-    return servicesSnap.size < 2;
+    return servicesSnap.size < 1;
   }
 
   /// Optional (can be empty for now)

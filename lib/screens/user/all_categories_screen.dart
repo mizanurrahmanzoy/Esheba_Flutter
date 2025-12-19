@@ -1,7 +1,7 @@
 import 'package:esheba_fixian/screens/user/category_model.dart';
 import 'package:flutter/material.dart';
 // import '../models/category_model.dart';
-import 'user_home_screen.dart';
+
 
 class AllCategoriesScreen extends StatelessWidget {
   final List<CategoryModel> categories;
@@ -26,5 +26,16 @@ class AllCategoriesScreen extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+class CategoryCard extends StatelessWidget {
+  final CategoryModel cat;
+
+  const CategoryCard({super.key, required this.cat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container();
   }
 }

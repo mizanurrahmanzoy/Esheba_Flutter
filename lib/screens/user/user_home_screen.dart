@@ -1,11 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:esheba_fixian/screens/user/category_model.dart';
+import 'package:esheba_fixian/screens/user/service_details_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../services/category_service.dart';
-// import '../../models/category_model.dart';
-import 'all_categories_screen.dart';
 import 'user_profile_screen.dart';
 
 class UserHomeScreen extends StatefulWidget {
@@ -17,32 +14,25 @@ class UserHomeScreen extends StatefulWidget {
 
 class _UserHomeScreenState extends State<UserHomeScreen> {
   Map<String, dynamic>? user;
-  List<CategoryModel> categories = [];
-
   bool loadingUser = true;
-  bool loadingCategories = true;
 
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    _loadUser();
   }
 
-  Future<void> _loadAll() async {
+  Future<void> _loadUser() async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    final userDoc = await FirebaseFirestore.instance
+    final doc = await FirebaseFirestore.instance
         .collection('customers')
         .doc(uid)
         .get();
 
-    final cats = await CategoryService.getCategories();
-
     setState(() {
-      user = userDoc.data();
-      categories = cats.cast<CategoryModel>();
+      user = doc.data();
       loadingUser = false;
-      loadingCategories = false;
     });
   }
 
@@ -52,28 +42,24 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
       backgroundColor: const Color(0xFFF6F7FB),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _loadAll,
+          onRefresh: _loadUser,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// 🟦 PROFILE HEADER
                 loadingUser ? _profileSkeleton() : _profileHeader(),
 
                 const SizedBox(height: 24),
 
-                /// 🧩 CATEGORIES
-                const Text(
-                  "Popular Services",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
+                _sectionTitle("🔥 Most Ordered Services"),
+                _mostOrderedServices(),
 
-                loadingCategories
-                    ? _categorySkeleton()
-                    : _categoryList(context),
+                const SizedBox(height: 28),
+
+                _sectionTitle("🆕 Latest Services"),
+                _latestServices(),
               ],
             ),
           ),
@@ -82,7 +68,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     );
   }
 
-  /// ---------------- PROFILE ----------------
+  // ---------------- PROFILE HEADER ----------------
 
   Widget _profileHeader() {
     return GestureDetector(
@@ -104,10 +90,10 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
           children: [
             CircleAvatar(
               radius: 28,
-              backgroundImage: user!['image'] != null
+              backgroundImage: user?['image'] != null
                   ? NetworkImage(user!['image'])
                   : null,
-              child: user!['image'] == null
+              child: user?['image'] == null
                   ? const Icon(Icons.person, size: 28)
                   : null,
             ),
@@ -117,7 +103,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user!['name'],
+                    user?['name'] ?? '',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -128,7 +114,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    user!['location'] ?? "Set your location",
+                    user?['location'] ?? 'Set your location',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
@@ -172,124 +158,176 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
     );
   }
 
-  /// ---------------- CATEGORIES ----------------
+  // ---------------- SECTIONS ----------------
 
-  Widget _categoryList(BuildContext context) {
-    if (categories.isEmpty) {
-      return const Center(child: Text("No categories available"));
-    }
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    );
+  }
 
+  // ---------------- MOST ORDERED ----------------
+
+  Widget _mostOrderedServices() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('services')
+          .where('isActive', isEqualTo: true)
+          .orderBy('orderCount', descending: true)
+          .limit(6)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _serviceSkeleton();
+        }
+
+        final docs = snapshot.data!.docs;
+
+        // Fallback → recent orders if no popular
+        if (docs.isEmpty ||
+            ((docs.first.data() as Map)['orderCount'] ?? 0) == 0) {
+          return _recentOrders();
+        }
+
+        return _serviceList(docs);
+      },
+    );
+  }
+
+  // ---------------- RECENT ORDERS ----------------
+
+  Widget _recentOrders() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('orders')
+          .orderBy('createdAt', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text("No recent orders found"),
+          );
+        }
+
+        return _serviceList(snapshot.data!.docs);
+      },
+    );
+  }
+
+  // ---------------- LATEST SERVICES ----------------
+
+  Widget _latestServices() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('services')
+          .where('isActive', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(6)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _serviceSkeleton();
+        }
+
+        if (snapshot.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text("No services available"),
+          );
+        }
+
+        return _serviceList(snapshot.data!.docs);
+      },
+    );
+  }
+
+  // ---------------- SERVICE CARD LIST ----------------
+  Widget _serviceList(List<QueryDocumentSnapshot> docs) {
     return SizedBox(
-      height: 160,
+      height: 190,
       child: ListView.separated(
+        padding: const EdgeInsets.only(top: 12),
         scrollDirection: Axis.horizontal,
-        itemCount: categories.length > 4 ? 5 : categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
-        itemBuilder: (_, index) {
-          if (index == 4) return _viewAllCard(context);
+        itemCount: docs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, i) {
+          final doc = docs[i];
+          final data = doc.data() as Map<String, dynamic>;
 
-          final cat = categories[index];
-          return CategoryCard(cat: cat);
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ServiceDetailsScreen(
+                    serviceId: doc.id, // 🔥 IMPORTANT
+                    service: data,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              width: 160,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF464646).withOpacity(.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.handyman, color: Colors.blue, size: 30),
+                  const SizedBox(height: 10),
+                  Text(
+                    data['title'] ?? '',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  Text(
+                    "৳ ${data['price']}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget _categorySkeleton() {
+  // ---------------- SKELETON ----------------
+
+  Widget _serviceSkeleton() {
     return SizedBox(
-      height: 160,
+      height: 190,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: 4,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (_, __) => Container(
-          width: 120,
+          width: 160,
           decoration: BoxDecoration(
-            color: Colors.grey.shade300,
+            // color: Colors.grey.shade300,
             borderRadius: BorderRadius.circular(18),
           ),
         ),
       ),
     );
-  }
-
-  Widget _viewAllCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AllCategoriesScreen(categories: categories),
-          ),
-        );
-      },
-      child: Container(
-        width: 120,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Center(
-          child: Text(
-            "View All",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// ---------------- CATEGORY CARD ----------------
-
-class CategoryCard extends StatelessWidget {
-  final CategoryModel cat;
-
-  const CategoryCard({super.key, required this.cat});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 120,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF42A5F5), Color(0xFF1976D2)],
-        ),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(_icon(cat.icon), color: Colors.white, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            cat.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _icon(String key) {
-    switch (key) {
-      case 'plumbing':
-        return Icons.plumbing;
-      case 'cleaning_services':
-        return Icons.cleaning_services;
-      case 'electrical_services':
-        return Icons.electrical_services;
-      case 'carpenter':
-        return Icons.carpenter;
-      case 'ac_unit':
-        return Icons.ac_unit;
-      default:
-        return Icons.miscellaneous_services;
-    }
   }
 }

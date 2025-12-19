@@ -105,6 +105,22 @@ class _RegisterProviderScreenState extends State<RegisterProviderScreen> {
         'lat': lat,
         'lng': lng,
         'image': imageUrl,
+        /// Account status
+        'status': 'active', // active | suspended | deactivated
+        /// Availability
+        'available': true,
+        /// IsOnline
+        'isOnline': false,
+        /// Device Token (for push notifications)
+        'deviceToken': null,
+        /// Balance
+        'balance': 0.0,
+        /// Earnings
+        'totalEarnings': 0.0,
+        /// Withdrawn Amount
+        'totalWithdrawn': 0.0,
+        /// Primum Membership
+        'isPremium': false,
 
         /// Provider stats
         'rating': 0,

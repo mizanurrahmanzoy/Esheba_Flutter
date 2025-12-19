@@ -102,6 +102,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final location = provider!['location'] ?? 'Not set';
     final rating = provider!['rating'] ?? 0;
     final accuracy = provider!['accuracy'] ?? 100;
+    final balance = provider!['balance'] ?? 0.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text("My Profile")),
@@ -138,6 +139,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           const SizedBox(height: 6),
           Center(child: Text("⭐ Rating: $rating")),
           Center(child: Text("🎯 Accuracy: $accuracy%")),
+          Center(child: Text("💰 Balance: $balance")),
 
           const Divider(height: 32),
 
@@ -151,7 +153,27 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               _updateVisibility();
             },
           ),
+          /// Availability
+          SwitchListTile(
+            title: const Text("Available for Jobs"),
+            subtitle: const Text("Toggle your availability to accept new jobs"),
+            value: provider!['isAvailable'] ?? true,
+            onChanged: (v) async {
+              final uid = FirebaseAuth.instance.currentUser!.uid;
 
+              await FirebaseFirestore.instance
+                  .collection('providers')
+                  .doc(uid)
+                  .update({
+                'isAvailable': v,
+              });
+
+              setState(() {
+                provider!['isAvailable'] = v;
+              });
+              await ProviderCache.save(provider!);
+            },
+          ),
           /// 📍 Location visibility
           SwitchListTile(
             title: const Text("Show Location"),

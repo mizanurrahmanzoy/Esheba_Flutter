@@ -113,6 +113,9 @@ class _RegisterCustomerScreenState extends State<RegisterCustomerScreen> {
         'lat': lat,
         'lng': lng,
         'photoUrl': photoUrl,
+        /// Premium 
+        'isPremium': false,
+        
         'createdAt': FieldValue.serverTimestamp(),
       });
 

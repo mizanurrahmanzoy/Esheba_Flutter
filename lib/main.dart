@@ -1,6 +1,7 @@
 import 'package:esheba_fixian/screens/auth/choose_account_type_screen.dart';
 import 'package:esheba_fixian/screens/auth/register_customer_screen.dart';
 import 'package:esheba_fixian/screens/auth/register_provider_screen.dart';
+import 'package:esheba_fixian/screens/premium/premium_screen.dart';
 import 'package:esheba_fixian/screens/provider/create_service_screen.dart';
 import 'package:esheba_fixian/screens/provider/provider_profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +16,6 @@ import 'screens/service_list_screen.dart';
 
 import 'screens/service_list_user.dart';
 
-import 'screens/provider/orders_provider_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,9 +49,9 @@ class EShebaApp extends StatelessWidget {
 
         '/services-user': (ctx) => const ServiceListUserScreen(),
 
-        '/provider-orders': (ctx) => const ProviderOrdersScreen(),
-        '/create-service': (context) => const CreateServiceScreen(),
         
+        '/create-service': (context) => const CreateServiceScreen(),
+        '/premium_upgrade': (context) => const PremiumScreen(),
       },
     );
   }
