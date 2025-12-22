@@ -244,7 +244,7 @@ class _CreateServiceScreenState extends State<CreateServiceScreen> {
             const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
-              value: selectedCategory,
+              initialValue: selectedCategory,
               items: categories
                   .map(
                     (c) => DropdownMenuItem(

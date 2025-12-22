@@ -71,6 +71,7 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
   // ---------------- PROFILE HEADER ----------------
 
   Widget _profileHeader() {
+    final photoUrl = user?['photoUrl'];
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -89,14 +90,15 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         child: Row(
           children: [
             CircleAvatar(
-              radius: 28,
-              backgroundImage: user?['image'] != null
-                  ? NetworkImage(user!['image'])
-                  : null,
-              child: user?['image'] == null
-                  ? const Icon(Icons.person, size: 28)
-                  : null,
-            ),
+            radius: 40,
+            backgroundColor: Colors.white,
+            backgroundImage:
+                photoUrl != null ? NetworkImage(photoUrl) : null,
+            child: photoUrl == null
+                ? const Icon(Icons.person,
+                    size: 50, color: Colors.blue)
+                : null,
+          ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

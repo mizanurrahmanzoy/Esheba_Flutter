@@ -106,6 +106,7 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                       (data['title'] ?? '').toString().toLowerCase();
                   final category =
                       (data['category'] ?? '').toString().toLowerCase();
+                  // ignore: unused_local_variable
                   final location =
                       (data['location'] ?? '').toString().toLowerCase();
                   final price = (data['price'] ?? 0) as num;

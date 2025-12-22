@@ -88,6 +88,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       await FirebaseFirestore.instance.collection('orders').add({
         'orderNumber': orderNumber,
         'serviceId': widget.serviceId,
+        'serviceTitle': service!['title'],
         'providerId': service!['providerId'],
         'customerId': user.uid,
         'price': service!['price'],
@@ -244,6 +245,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                                 decoration: TextDecoration.underline,
                               ),
                             ),
+                            
                           ),
                           const Icon(Icons.map),
                         ],

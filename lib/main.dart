@@ -4,6 +4,7 @@ import 'package:esheba_fixian/screens/auth/register_provider_screen.dart';
 import 'package:esheba_fixian/screens/premium/premium_screen.dart';
 import 'package:esheba_fixian/screens/provider/create_service_screen.dart';
 import 'package:esheba_fixian/screens/provider/provider_profile_screen.dart';
+import 'package:esheba_fixian/screens/user/user_edit_profile_screen.dart';  
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -52,6 +53,7 @@ class EShebaApp extends StatelessWidget {
         
         '/create-service': (context) => const CreateServiceScreen(),
         '/premium_upgrade': (context) => const PremiumScreen(),
+        '/edit-profile' : (context) => const UserEditProfileScreen(),
       },
     );
   }
