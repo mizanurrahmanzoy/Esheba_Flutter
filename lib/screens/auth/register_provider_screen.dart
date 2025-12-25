@@ -134,7 +134,14 @@ class _RegisterProviderScreenState extends State<RegisterProviderScreen> {
         /// KYC (future)
         'kycStatus':
             'not_started', // not_started | pending | approved | rejected
-
+        "verification": {
+          "nidFront": "",
+          "nidBack": "",
+          "otherDocuments": "",
+          "submittedAt": "timestamp",
+          "reviewedAt": null,
+          "adminNote": null,
+        },
         'createdAt': FieldValue.serverTimestamp(),
       });
 
