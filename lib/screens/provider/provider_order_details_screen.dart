@@ -69,9 +69,9 @@ class _ProviderOrderDetailsScreenState
                 }
 
                 final customer =
-                    snap.data![0].data() as Map<String, dynamic>?;
+                    snap.data![0].data();
                 final provider =
-                    snap.data![1].data() as Map<String, dynamic>?;
+                    snap.data![1].data();
 
                 if (customer == null) {
                   return const Text("Customer not found");
@@ -135,8 +135,8 @@ class _ProviderOrderDetailsScreenState
                                     backgroundColor: Colors.blue),
                                 onPressed: hasCustomerLocation
                                     ? () => _openExternalNav(
-                                          customerLat!,
-                                          customerLng!,
+                                          customerLat,
+                                          customerLng,
                                         )
                                     : null,
                               ),
@@ -153,8 +153,8 @@ class _ProviderOrderDetailsScreenState
                       _mapPreview(
                         providerLat: providerLat,
                         providerLng: providerLng,
-                        destLat: customerLat!,
-                        destLng: customerLng!,
+                        destLat: customerLat,
+                        destLng: customerLng,
                       )
                     else
                       const Text(
@@ -186,7 +186,7 @@ class _ProviderOrderDetailsScreenState
         providerLat != null && providerLng != null;
 
     final distanceKm = hasProvider
-        ? _distance(providerLat!, providerLng!, destLat, destLng)
+        ? _distance(providerLat, providerLng, destLat, destLng)
         : null;
 
     final eta =
@@ -195,7 +195,7 @@ class _ProviderOrderDetailsScreenState
     return FutureBuilder<List<LatLng>>(
       future: hasProvider
           ? _fetchRoute(
-              providerLat!, providerLng!, destLat, destLng)
+              providerLat, providerLng, destLat, destLng)
           : Future.value([]),
       builder: (_, snap) {
         return Column(
@@ -243,7 +243,7 @@ class _ProviderOrderDetailsScreenState
                         if (hasProvider)
                           Marker(
                             point:
-                                LatLng(providerLat!, providerLng!),
+                                LatLng(providerLat, providerLng),
                             child: const Icon(
                               Icons.person_pin_circle,
                               color: Colors.green,

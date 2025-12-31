@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:esheba_fixian/screens/provider/my_services_screen.dart';
 import 'package:esheba_fixian/screens/provider/provider_orders_screen.dart';
+import 'package:esheba_fixian/services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -8,10 +9,26 @@ import '../../widgets/logout_button.dart';
 import 'create_service_screen.dart';
 import 'provider_profile_screen.dart';
 
-class ProviderHomeScreen extends StatelessWidget {
+class ProviderHomeScreen extends StatefulWidget {
   const ProviderHomeScreen({super.key});
 
-  /// 🔁 Orders stream
+  @override
+  State<ProviderHomeScreen> createState() => _ProviderHomeScreenState();
+}
+
+class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
+  // ================= LIFECYCLE =================
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔔 Initialize FCM notifications (ONLY ONCE)
+    NotificationService.init();
+  }
+
+  // ================= STREAMS =================
+
   Stream<QuerySnapshot<Map<String, dynamic>>> _ordersStream() {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
@@ -21,13 +38,14 @@ class ProviderHomeScreen extends StatelessWidget {
         .snapshots();
   }
 
-  /// 🧑 Provider header widget
-  Widget _providerHeader(BuildContext context) {
+  // ================= WIDGETS =================
+
+  Widget _providerHeader() {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
-          .collection('providers') // ✅ FIXED
+          .collection('providers')
           .doc(uid)
           .snapshots(),
       builder: (context, snapshot) {
@@ -53,7 +71,6 @@ class ProviderHomeScreen extends StatelessWidget {
         }
 
         final data = snapshot.data!.data()!;
-
         final name = data['name'] ?? 'Provider';
         final imageUrl = data['image'];
 
@@ -61,7 +78,9 @@ class ProviderHomeScreen extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const ProviderProfileScreen()),
+              MaterialPageRoute(
+                builder: (_) => const ProviderProfileScreen(),
+              ),
             );
           },
           child: Container(
@@ -86,17 +105,17 @@ class ProviderHomeScreen extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: const [
                       Text(
-                        name,
-                        style: const TextStyle(
+                        "View Profile",
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        "View Profile",
+                      SizedBox(height: 4),
+                      Text(
+                        "Tap to open",
                         style: TextStyle(color: Colors.blue, fontSize: 13),
                       ),
                     ],
@@ -111,7 +130,6 @@ class ProviderHomeScreen extends StatelessWidget {
     );
   }
 
-  /// 🔢 Stat card widget
   Widget _statCard(String title, int value, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -137,6 +155,8 @@ class ProviderHomeScreen extends StatelessWidget {
     );
   }
 
+  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -154,27 +174,21 @@ class ProviderHomeScreen extends StatelessWidget {
           final orders = snapshot.data?.docs ?? [];
 
           final total = orders.length;
-          final completed = orders
-              .where((o) => o.data()['status'] == 'completed')
-              .length;
-          final ongoing = orders
-              .where((o) => o.data()['status'] == 'in_progress')
-              .length;
-          final failed = orders
-              .where((o) => o.data()['status'] == 'cancelled')
-              .length;
+          final completed =
+              orders.where((o) => o['status'] == 'completed').length;
+          final ongoing =
+              orders.where((o) => o['status'] == 'in_progress').length;
+          final failed =
+              orders.where((o) => o['status'] == 'cancelled').length;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// 👤 Provider info
-                _providerHeader(context),
-
+                _providerHeader(),
                 const SizedBox(height: 20),
 
-                /// 📊 Stats
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -191,7 +205,6 @@ class ProviderHomeScreen extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 28),
-
                 const Text(
                   "Quick Actions",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -229,10 +242,11 @@ class ProviderHomeScreen extends StatelessWidget {
                         },
                       ),
                     ),
-                    
                   ],
                 ),
+
                 const SizedBox(height: 12),
+
                 Row(
                   children: [
                     Expanded(

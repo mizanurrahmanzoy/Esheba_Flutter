@@ -50,7 +50,7 @@ class LocationService {
       p.administrativeArea,
       // p.country,
     ]
-        .where((e) => e != null && e!.isNotEmpty)
+        .where((e) => e != null && e.isNotEmpty)
         .map((e) => e!)
         .toList();
 

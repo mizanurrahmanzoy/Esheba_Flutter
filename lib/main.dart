@@ -5,7 +5,8 @@ import 'package:esheba_fixian/screens/premium/premium_screen.dart';
 import 'package:esheba_fixian/screens/provider/create_service_screen.dart';
 import 'package:esheba_fixian/screens/provider/provider_profile_screen.dart';
 import 'package:esheba_fixian/screens/provider/provider_verification_upload_screen.dart';
-import 'package:esheba_fixian/screens/user/user_edit_profile_screen.dart';  
+import 'package:esheba_fixian/screens/user/user_edit_profile_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -18,9 +19,10 @@ import 'screens/service_list_screen.dart';
 
 import 'screens/service_list_user.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_bgHandler);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const EShebaApp());
@@ -51,12 +53,17 @@ class EShebaApp extends StatelessWidget {
 
         '/services-user': (ctx) => const ServiceListUserScreen(),
 
-        
         '/create-service': (context) => const CreateServiceScreen(),
         '/premium_upgrade': (context) => const PremiumScreen(),
-        '/edit-profile' : (context) => const UserEditProfileScreen(),
-        '/provider-verification': (context) => const ProviderVerificationUploadScreen(),
+        '/edit-profile': (context) => const UserEditProfileScreen(),
+        '/provider-verification': (context) =>
+            const ProviderVerificationUploadScreen(),
       },
     );
   }
 }
+
+Future<void> _bgHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+}
+
