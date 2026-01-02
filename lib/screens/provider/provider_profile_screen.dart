@@ -1,15 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:esheba_fixian/screens/provider/edit_provider_profile_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/provider_cache.dart';
-
 class ProviderProfileScreen extends StatefulWidget {
   const ProviderProfileScreen({super.key});
 
   @override
-  State<ProviderProfileScreen> createState() =>
-      _ProviderProfileScreenState();
+  State<ProviderProfileScreen> createState() => _ProviderProfileScreenState();
 }
 
 class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
@@ -26,54 +25,22 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final cached = await ProviderCache.load();
-    if (cached != null) {
-      setState(() {
-        provider = cached;
-        contactVisible = cached['contactVisible'] ?? true;
-        locationVisible = cached['locationVisible'] ?? true;
-        loading = false;
-      });
-    }
-
     final uid = FirebaseAuth.instance.currentUser!.uid;
-    final doc = await FirebaseFirestore.instance
+    final snap = await FirebaseFirestore.instance
         .collection('providers')
         .doc(uid)
         .get();
 
-    if (!doc.exists) {
+    if (!snap.exists) {
       setState(() => loading = false);
       return;
     }
 
-    final data = doc.data()!;
-    await ProviderCache.save(data);
+    provider = snap.data();
+    contactVisible = provider!['contactVisible'] ?? true;
+    locationVisible = provider!['locationVisible'] ?? true;
 
-    setState(() {
-      provider = data;
-      contactVisible = data['contactVisible'] ?? true;
-      locationVisible = data['locationVisible'] ?? true;
-      loading = false;
-    });
-  }
-
-  Future<void> _updateVisibility() async {
-    if (provider == null) return;
-
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-
-    await FirebaseFirestore.instance
-        .collection('providers')
-        .doc(uid)
-        .update({
-      'contactVisible': contactVisible,
-      'locationVisible': locationVisible,
-    });
-
-    provider!['contactVisible'] = contactVisible;
-    provider!['locationVisible'] = locationVisible;
-    await ProviderCache.save(provider!);
+    setState(() => loading = false);
   }
 
   @override
@@ -84,123 +51,47 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       );
     }
 
-    if (provider == null) {
-      return const Scaffold(
-        body: Center(child: Text("Provider profile not found")),
-      );
-    }
-
     final image = provider!['image'];
-    final name = provider!['name'] ?? 'Provider';
-    final phone = provider!['phone'] ?? 'Not set';
-    final location = provider!['location'] ?? 'Not set';
-    final rating = provider!['rating'] ?? 0;
-    final accuracy = provider!['accuracy'] ?? 100;
-    final balance = provider!['balance'] ?? 0;
     final kycStatus = provider!['kycStatus'] ?? 'not_started';
 
     return Scaffold(
-      appBar: AppBar(title: const Text("My Profile")),
+      appBar: AppBar(
+        title: const Text("My Profile"),
+        backgroundColor: Colors.indigo,
+      ),
       body: RefreshIndicator(
         onRefresh: _loadProfile,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            /// Avatar
-            Center(
-              child: CircleAvatar(
-                radius: 55,
-                backgroundColor: Colors.grey.shade300,
-                backgroundImage:
-                    image != null && image.toString().isNotEmpty
-                        ? NetworkImage(image)
-                        : null,
-                child: image == null || image.toString().isEmpty
-                    ? const Icon(Icons.person, size: 50)
-                    : null,
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            Center(
-              child: Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 6),
-            Center(child: Text("⭐ Rating: $rating")),
-            Center(child: Text("🎯 Accuracy: $accuracy%")),
-            Center(child: Text("💰 Balance: $balance")),
-
-            const SizedBox(height: 10),
-
-            /// 🛂 KYC BADGE
-            Center(child: _kycBadge(kycStatus)),
-
+            _profileHeader(image),
             const SizedBox(height: 12),
+            _statsRow(),
+            const SizedBox(height: 16),
+            Center(child: _kycBadge(kycStatus)),
+            const SizedBox(height: 20),
 
-            /// VERIFY BUTTON
-            if (kycStatus != 'verified')
-              ElevatedButton.icon(
-                icon: const Icon(Icons.verified_user),
-                label: const Text("Verify Profile"),
-                onPressed: () async {
-                  await Navigator.pushNamed(
-                      context, '/provider-verification');
-                  _loadProfile(); // 🔁 refresh after upload
-                },
-              ),
+            if (kycStatus != 'approved')
+              _verifyButton(),
 
-            const Divider(height: 32),
+            _sectionTitle("Visibility"),
+            _visibilityToggles(),
 
-            SwitchListTile(
-              title: const Text("Show Phone Number"),
-              subtitle: Text(phone),
-              value: contactVisible,
-              onChanged: (v) {
-                setState(() => contactVisible = v);
-                _updateVisibility();
-              },
-            ),
-
-            SwitchListTile(
-              title: const Text("Available for Jobs"),
-              value: provider!['available'] ?? true,
-              onChanged: (v) async {
-                final uid = FirebaseAuth.instance.currentUser!.uid;
-                await FirebaseFirestore.instance
-                    .collection('providers')
-                    .doc(uid)
-                    .update({'available': v});
-
-                setState(() => provider!['available'] = v);
-                await ProviderCache.save(provider!);
-              },
-            ),
-
-            SwitchListTile(
-              title: const Text("Show Location"),
-              subtitle: Text(location),
-              value: locationVisible,
-              onChanged: (v) {
-                setState(() => locationVisible = v);
-                _updateVisibility();
-              },
-            ),
-
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             ElevatedButton.icon(
               icon: const Icon(Icons.edit),
               label: const Text("Edit Profile"),
-              onPressed: () {
-                Navigator.pushNamed(context, '/provider-edit-profile');
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditProviderProfileScreen(
+                      provider: provider!,
+                    ),
+                  ),
+                );
+                _loadProfile();
               },
             ),
           ],
@@ -209,34 +100,109 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  Widget _kycBadge(String status) {
-    Color color;
-    String text;
+  Widget _profileHeader(String? image) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 55,
+          backgroundColor: Colors.indigo.shade100,
+          backgroundImage:
+              image != null ? NetworkImage(image) : null,
+          child: image == null
+              ? const Icon(Icons.person, size: 50)
+              : null,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          provider!['name'],
+          style: const TextStyle(
+              fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        Text(provider!['email'], style: const TextStyle(color: Colors.grey)),
+      ],
+    );
+  }
 
-    switch (status) {
-      case 'verified':
-        color = Colors.green;
-        text = "Verified";
-        break;
-      case 'pending':
-        color = Colors.orange;
-        text = "Pending Review";
-        break;
-      case 'rejected':
-        color = Colors.red;
-        text = "Rejected";
-        break;
-      default:
-        color = Colors.grey;
-        text = "Not Verified";
-    }
+  Widget _statsRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _stat("⭐ Rating", provider!['rating']),
+        _stat("🎯 Accuracy", "${provider!['accuracy']}%"),
+        _stat("💰 Balance", "৳${provider!['balance']}"),
+      ],
+    );
+  }
 
-    return Chip(
-      backgroundColor: color.withOpacity(.15),
-      label: Text(
-        "🛂 $text",
-        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+  Widget _stat(String label, dynamic value) {
+    return Column(
+      children: [
+        Text(value.toString(),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _verifyButton() {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.verified_user),
+      label: const Text("Verify Profile"),
+      onPressed: () {
+        Navigator.pushNamed(context, '/provider-verification');
+      },
+    );
+  }
+
+  Widget _visibilityToggles() {
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: const Text("Show Phone"),
+            value: contactVisible,
+            onChanged: (v) async {
+              contactVisible = v;
+              await _updateVisibility();
+            },
+          ),
+          SwitchListTile(
+            title: const Text("Show Location"),
+            value: locationVisible,
+            onChanged: (v) async {
+              locationVisible = v;
+              await _updateVisibility();
+            },
+          ),
+        ],
       ),
+    );
+  }
+
+  Future<void> _updateVisibility() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    await FirebaseFirestore.instance
+        .collection('providers')
+        .doc(uid)
+        .update({
+      'contactVisible': contactVisible,
+      'locationVisible': locationVisible,
+    });
+    setState(() {});
+  }
+
+  Widget _sectionTitle(String t) =>
+      Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(t, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)));
+
+  Widget _kycBadge(String status) {
+    final map = {
+      'approved': Colors.green,
+      'pending': Colors.orange,
+      'rejected': Colors.red,
+    };
+    return Chip(
+      label: Text(status.toUpperCase()),
+      backgroundColor: (map[status] ?? Colors.grey).withOpacity(.2),
     );
   }
 }
